@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Axiometrical Workspace</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#e9eef2;--panel:#f8fafb;--ink:#14263a;--mut:#5b6b7b;--line:#c5d0d9;--acc:#0b6e8a;--ws:#fbfcfd;--grid:#d3dde5}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1620;--panel:#16212d;--ink:#e3edf5;--mut:#8fa2b3;--line:#2b3b4b;--acc:#4cc2e0;--ws:#101a25;--grid:#223140}}
+:root[data-theme="dark"]{--bg:#0e1620;--panel:#16212d;--ink:#e3edf5;--mut:#8fa2b3;--line:#2b3b4b;--acc:#4cc2e0;--ws:#101a25;--grid:#223140}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 "IBM Plex Sans",system-ui,sans-serif}
+.app{display:grid;grid-template-columns:300px 1fr;gap:12px;padding:12px;min-height:100vh}
+@media(max-width:760px){.app{grid-template-columns:1fr}}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:18px;margin:0}h2{font-size:13px;margin:0 0 6px;color:var(--mut);font-weight:600}
+.row{display:flex;gap:6px;align-items:end}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);flex:1;min-width:0}
+input[type=number],input[type=text]{width:100%;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--ws);color:var(--ink);font:inherit}
+input[type=color]{width:100%;height:34px;border:1px solid var(--line);border-radius:4px;background:var(--ws);padding:2px}
+button{padding:8px 10px;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:4px;font:inherit;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+@media(prefers-color-scheme:dark){button:not(.ghost){color:#06222b}}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+ol{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:4px}
+li{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+li:last-child{border:0}li button{padding:2px 7px;font-size:12px}
+li label{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:14px}
+li input{width:auto}
+.empty{color:var(--mut);padding:8px;font-size:13px}
+main{min-width:0;display:flex;flex-direction:column;gap:8px}
+.wsbox{overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--ws);max-width:100%;max-height:calc(100vh - 90px)}
+canvas{display:block;cursor:grab;touch-action:none}
+.hint{font-size:12px;color:var(--mut)}
+#msg{color:var(--ink);min-height:18px}
+</style></head><body>
+<div class="app">
+<aside>
+ <h1>Axiometrical Workspace</h1>
+ <section><h2>Workspace size (px)</h2>
+  <div class="row"><label>Width<input id="vw" type="number" value="760" min="200" max="3000"></label>
+  <label>Height<input id="vh" type="number" value="520" min="200" max="2000"></label></div></section>
+ <section><h2>Add a point</h2>
+  <div class="row"><label>X<input id="px" type="number" value="0" step="0.5"></label>
+  <label>Y (up)<input id="py" type="number" value="0" step="0.5"></label>
+  <label>Z<input id="pz" type="number" value="0" step="0.5"></label></div>
+  <div class="row" style="margin-top:8px"><button id="add" style="flex:1">Add point</button></div></section>
+ <section><h2>Points (<span id="cnt">0</span>) · selected: <span id="selc">0</span></h2>
+  <ol id="list"></ol>
+  <div class="row" style="margin-top:6px"><button id="selAll" class="ghost" style="flex:1">Select all</button><button id="selNone" class="ghost" style="flex:1">Deselect</button></div>
+  <div class="hint" style="margin-top:6px">Tick points here or click them in the workspace. Lines and walls follow the order you select them.</div></section>
+ <section><h2>Lines and detail</h2>
+  <div class="row"><button id="link" style="flex:1">Connect selected</button><button id="unlink" class="ghost">Undo line</button></div>
+  <label style="margin-top:8px">Detail level: <b id="dv">1</b><input id="det" type="range" min="1" max="8" value="1"></label>
+  <div class="hint">Higher detail adds a finer floor grid and a mesh across walls.</div></section>
+ <section><h2>Wall</h2>
+  <label>Color (changes the newest wall)<input id="col" type="color" value="#2a9d8f"></label>
+  <div class="row" style="margin-top:8px"><button id="make" style="flex:1">Wall from selected</button><button id="unmake" class="ghost">Undo wall</button></div>
+  <div class="row" style="margin-top:6px"><button id="clear" class="ghost" style="flex:1">Clear all</button><button id="demo" class="ghost" style="flex:1">Example</button></div></section>
+ <section><h2>Projects</h2>
+  <div class="row"><label>Name<input id="pname" type="text" placeholder="My wall" maxlength="40"></label><button id="save">Save</button></div>
+  <ol id="plist" style="margin-top:8px"></ol>
+  <details style="margin-top:8px"><summary class="hint">Copy or paste project data</summary>
+   <textarea id="json" rows="4" style="width:100%;margin-top:6px;font:12px monospace;background:var(--ws);color:var(--ink);border:1px solid var(--line);border-radius:4px"></textarea>
+   <div class="row" style="margin-top:6px"><button id="exp" class="ghost" style="flex:1">Show current</button><button id="imp" class="ghost" style="flex:1">Load pasted</button></div></details></section>
+</aside>
+<main><div class="wsbox" id="box"><canvas id="cv"></canvas></div>
+<div id="msg" class="hint" role="status"></div>
+<div class="hint">Drag to rotate · scroll or pinch to zoom · click a point to select it. Red = X, green = Y, blue = Z.</div></main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+let pts=[],links=[],walls=[],chosen=[],detail=1,hov=-1,yaw=-0.6,pitch=0.45,dist=14;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const msg=t=>$('msg').textContent=t;
+function size(){
+  const w=Math.max(200,Math.min(3000,+$('vw').value||760)),h=Math.max(200,Math.min(2000,+$('vh').value||520));
+  const d=window.devicePixelRatio||1;
+  cv.width=w*d;cv.height=h*d;cv.style.width=w+'px';cv.style.height=h+'px';
+  ctx.setTransform(d,0,0,d,0,0);draw();
+  const b=$('box');b.scrollLeft=(b.scrollWidth-b.clientWidth)/2;b.scrollTop=(b.scrollHeight-b.clientHeight)/2;
+}
+function target(){
+  if(!pts.length)return [0,1.5,0];
+  const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+  pts.forEach(p=>p.forEach((v,i)=>{mn[i]=Math.min(mn[i],v);mx[i]=Math.max(mx[i],v)}));
+  return mn.map((v,i)=>(v+mx[i])/2);
+}
+function proj(p){
+  const w=cv.clientWidth,h=cv.clientHeight,T=target();
+  let x=p[0]-T[0],y=p[1]-T[1],z=p[2]-T[2];
+  let x1=x*Math.cos(yaw)+z*Math.sin(yaw),z1=-x*Math.sin(yaw)+z*Math.cos(yaw);
+  let y2=y*Math.cos(pitch)-z1*Math.sin(pitch),z2=y*Math.sin(pitch)+z1*Math.cos(pitch);
+  const zc=z2+dist,f=Math.min(w,h)*0.9;
+  if(zc<0.1)return null;
+  return [w/2+x1*f/zc,h/2-y2*f/zc,zc];
+}
+function line(a,b,c,wd){
+  const A=proj(a),B=proj(b);if(!A||!B)return;
+  ctx.strokeStyle=c;ctx.lineWidth=wd||1;ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();
+}
+const lp=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+function draw(){
+  const w=cv.clientWidth,h=cv.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  const gs=detail>=5?0.5:1;
+  for(let i=-10;i<=10;i+=gs){const c=i===0?css('--mut'):css('--grid');line([i,0,-10],[i,0,10],c);line([-10,0,i],[10,0,i],c);}
+  line([0,0,0],[11,0,0],'#d64545',2);line([0,0,0],[0,11,0],'#2f9e44',2);line([0,0,0],[0,0,11],'#3b6fd6',2);
+  ctx.font='600 12px "IBM Plex Sans",sans-serif';ctx.fillStyle=css('--mut');
+  [['X',[11.5,0,0]],['Y',[0,11.5,0]],['Z',[0,0,11.5]]].forEach(([t,p])=>{const q=proj(p);if(q)ctx.fillText(t,q[0],q[1])});
+  const P=pts.map(proj);
+  walls.map(wl=>({wl,z:wl.ids.reduce((s,k)=>s+(P[k]?P[k][2]:0),0)/wl.ids.length})).sort((a,b)=>b.z-a.z).forEach(({wl})=>{
+    if(!wl.ids.every(k=>P[k]))return;
+    const Q=wl.ids.map(k=>P[k]);
+    ctx.beginPath();Q.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();
+    ctx.globalAlpha=.9;ctx.fillStyle=wl.col;ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=css('--ink');ctx.lineWidth=1.5;ctx.stroke();
+    if(detail>1){
+      const n=detail,S=wl.ids.map(k=>pts[k]),C=S.reduce((a,p)=>a.map((v,i)=>v+p[i]/S.length),[0,0,0]);
+      ctx.globalAlpha=.35;ctx.lineWidth=1;
+      S.forEach((p,i)=>{const q=S[(i+1)%S.length];
+        for(let k=1;k<n;k++){line(lp(C,p,k/n),lp(C,q,k/n),css('--ink'));line(C,lp(p,q,k/n),css('--ink'))}
+        line(C,p,css('--ink'))});
+      ctx.globalAlpha=1}
+  });
+  links.forEach(c=>{for(let i=0;i<c.length-1;i++)line(pts[c[i]],pts[c[i+1]],css('--acc'),2.5)});
+  P.forEach((q,i)=>{if(!q)return;
+    const on=chosen.indexOf(i)>=0;
+    ctx.fillStyle=(on||i===hov)?'#f59f00':css('--acc');ctx.beginPath();ctx.arc(q[0],q[1],on?7:4.5,0,7);ctx.fill();
+    if(on){ctx.strokeStyle=css('--ink');ctx.lineWidth=1.5;ctx.stroke()}
+    ctx.fillStyle=css('--ink');ctx.fillText((i+1)+' ('+pts[i].join(', ')+')'+(on?'  #'+(chosen.indexOf(i)+1):''),q[0]+10,q[1]-9);});
+}
+function toggle(i){const k=chosen.indexOf(i);k<0?chosen.push(i):chosen.splice(k,1);render()}
+function dropPoint(i){
+  const f=a=>a.filter(k=>k!==i).map(k=>k>i?k-1:k);
+  pts.splice(i,1);links=links.map(f).filter(a=>a.length>1);
+  walls=walls.map(w=>({...w,ids:f(w.ids)})).filter(w=>w.ids.length>2);chosen=f(chosen);hov=-1;
+}
+function render(){
+  $('cnt').textContent=pts.length;$('selc').textContent=chosen.length;
+  const l=$('list');l.innerHTML='';
+  if(!pts.length){l.innerHTML='<div class="empty">No points yet. Enter X, Y, Z and add one.</div>';}
+  pts.forEach((p,i)=>{const li=document.createElement('li');
+    const lb=document.createElement('label'),cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=chosen.indexOf(i)>=0;cb.onchange=()=>toggle(i);
+    lb.append(cb,document.createTextNode((i+1)+': '+p.join(', ')));li.appendChild(lb);
+    li.onmouseenter=()=>{hov=i;draw()};li.onmouseleave=()=>{hov=-1;draw()};
+    const b=document.createElement('button');b.className='ghost';b.textContent='Remove';b.setAttribute('aria-label','Remove point '+(i+1));
+    b.onclick=()=>{dropPoint(i);render()};
+    li.appendChild(b);l.appendChild(li);});
+  draw();
+}
+$('add').onclick=()=>{pts.push(['px','py','pz'].map(k=>parseFloat($(k).value)||0));msg('');render()};
+$('link').onclick=()=>{
+  if(chosen.length<2){msg('Select at least 2 points to connect.');return}
+  links.push([...chosen]);msg('Connected '+chosen.length+' points.');chosen=[];render()};
+$('unlink').onclick=()=>{links.pop();msg('Removed the last line.');draw()};
+$('make').onclick=()=>{
+  if(chosen.length<3){msg('Select at least 3 points to make a wall.');return}
+  walls.push({ids:[...chosen],col:$('col').value});msg('Wall made from '+chosen.length+' points.');chosen=[];render()};
+$('unmake').onclick=()=>{walls.pop();msg('Removed the newest wall.');draw()};
+$('selAll').onclick=()=>{chosen=pts.map((_,i)=>i);render()};
+$('selNone').onclick=()=>{chosen=[];render()};
+$('clear').onclick=()=>{pts=[];links=[];walls=[];chosen=[];msg('');render()};
+$('demo').onclick=()=>{pts=[[-4,0,0],[4,0,0],[4,3,0],[-4,3,0]];links=[];walls=[];chosen=[];msg('Example loaded. Select points, then connect them or make a wall.');render()};
+$('col').oninput=()=>{if(walls.length)walls[walls.length-1].col=$('col').value;draw()};
+$('det').oninput=()=>{detail=+$('det').value;$('dv').textContent=detail;draw()};
+['vw','vh'].forEach(k=>$(k).onchange=size);
+let drag=null,moved=0,pinch=0;
+cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];moved=0;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+cv.addEventListener('pointermove',e=>{if(!drag)return;
+  const dx=e.clientX-drag[0],dy=e.clientY-drag[1];moved+=Math.abs(dx)+Math.abs(dy);
+  yaw+=dx*0.008;pitch=Math.max(-1.5,Math.min(1.5,pitch+dy*0.008));drag=[e.clientX,e.clientY];draw()});
+cv.addEventListener('pointerup',e=>{
+  if(drag&&moved<5){const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+    let best=-1,bd=16;pts.forEach((p,i)=>{const q=proj(p);if(q){const d=Math.hypot(q[0]-x,q[1]-y);if(d<bd){bd=d;best=i}}});
+    if(best>=0)toggle(best)}
+  drag=null;cv.style.cursor='grab'});
+cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(3,Math.min(60,dist*(1+e.deltaY*0.001)));draw()},{passive:false});
+cv.addEventListener('touchmove',e=>{if(e.touches.length==2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  if(pinch)dist=Math.max(3,Math.min(60,dist*pinch/d));pinch=d;draw()}},{passive:true});
+cv.addEventListener('touchend',()=>pinch=0);
+const KEY='wb-projects';
+function getAll(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+function putAll(o){try{localStorage.setItem(KEY,JSON.stringify(o));return true}catch(e){msg('Saving is not available in this browser.');return false}}
+function snap(){return {pts,links,walls,detail,vw:$('vw').value,vh:$('vh').value,yaw,pitch,dist}}
+function apply(s){
+  if(!s||!Array.isArray(s.pts)||!s.pts.every(p=>Array.isArray(p)&&p.length==3&&p.every(Number.isFinite))){msg('That project data is not valid.');return false}
+  const n=s.pts.length,all=s.pts.map((_,i)=>i),okc=a=>Array.isArray(a)&&a.every(k=>Number.isInteger(k)&&k>=0&&k<n);
+  pts=s.pts;chosen=[];
+  links=Array.isArray(s.links)?s.links.filter(a=>okc(a)&&a.length>1):(s.linked&&n>1?[all]:[]);
+  walls=Array.isArray(s.walls)?s.walls.filter(w=>w&&okc(w.ids)&&w.ids.length>2).map(w=>({ids:w.ids,col:w.col||'#2a9d8f'})):(s.wall&&n>2?[{ids:all,col:s.col||'#2a9d8f'}]:[]);
+  detail=Math.min(8,Math.max(1,Math.round(+s.detail||1)));$('det').value=detail;$('dv').textContent=detail;
+  $('vw').value=s.vw||760;$('vh').value=s.vh||520;
+  yaw=Number.isFinite(s.yaw)?s.yaw:-0.6;pitch=Number.isFinite(s.pitch)?s.pitch:0.45;dist=s.dist||14;size();render();return true}
+function plist(){
+  const all=getAll(),l=$('plist'),names=Object.keys(all);l.innerHTML='';
+  if(!names.length){l.innerHTML='<div class="empty">No saved projects yet.</div>';return}
+  names.forEach(n=>{const li=document.createElement('li');const s=document.createElement('span');s.textContent=n;li.appendChild(s);
+   const g=document.createElement('span');g.style.display='flex';g.style.gap='4px';
+   const o=document.createElement('button');o.className='ghost';o.textContent='Open';o.onclick=()=>{if(apply(all[n])){$('pname').value=n;msg('Opened “'+n+'”.')}};
+   const d=document.createElement('button');d.className='ghost';d.textContent='Delete';d.onclick=()=>{delete all[n];if(putAll(all)){msg('Deleted “'+n+'”.');plist()}};
+   g.append(o,d);li.appendChild(g);l.appendChild(li)})}
+$('save').onclick=()=>{
+  const n=$('pname').value.trim();if(!n){msg('Enter a project name first.');return}
+  if(!pts.length){msg('Add at least one point before saving.');return}
+  const all=getAll();all[n]=snap();if(putAll(all)){msg('Saved “'+n+'”.');plist()}};
+$('exp').onclick=()=>{$('json').value=JSON.stringify(snap());$('json').select();msg('Copy this text to keep or share the project.')};
+$('imp').onclick=()=>{try{if(apply(JSON.parse($('json').value)))msg('Project loaded.')}catch(e){msg('That project data is not valid.')}};
+plist();
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+size();render();
+</script></body></html>
